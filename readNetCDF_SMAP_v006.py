@@ -107,7 +107,7 @@ index2 = indexContainingSubstring(file_list,end_date_str)
 column_names = ["date", "soil_moisture"]
 df = pd.DataFrame(columns = column_names)
 
-i = 0;
+i = 0
 # start loop
 for ifile in range(index1,index2+1):
  
@@ -158,11 +158,12 @@ for ifile in range(index1,index2+1):
 
 if plot_time_series:
     df = df.set_index('date') # https://www.dataquest.io/blog/tutorial-time-series-analysis-with-pandas/
-    
+
     my_fontsize = 14
     year_size = 365 #approx 5 years of daily data
     df['soil_moisture'].plot(marker='.', ms = 8, alpha=1, linestyle='None',
-      figsize=(5*(math.ceil(df.size/year_size)),5), fontsize=my_fontsize, grid = True) 
+      figsize=(5*(math.ceil(df.size/year_size)),5), fontsize=my_fontsize, grid = True)
+    # sm_av = movingaverage(df['soil_moisture'], 50) # testing
     plt.title('SMAP timeseries for queried coordinate', fontsize=my_fontsize)
     plt.xlabel('', fontsize=my_fontsize)
     plt.ylabel('Soil moisture (m$^3$/ m$^3$)', fontsize=my_fontsize)  
