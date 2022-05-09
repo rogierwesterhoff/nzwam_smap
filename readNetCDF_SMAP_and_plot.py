@@ -10,15 +10,17 @@ v002: plots daily maps and mean maps, option of plotting all (daily) maps can be
 v003, 24 Feb 2022: plotting time series of a specific coordinate
 v004, 24 Feb 2022: re-structuring for efficiency
 v005: 2 March:
-      - further re-writing for efficiency;
-      - Changed data folder location
-Spyder Editor
+   - further re-writing for efficiency;
+   - Changed data folder location
+(v001 to v005 were developed in the Spyder Editor)
 v006: 6 May 2022:
-PyCharm editor
-    - plot time series of coordinate
+    -   developed in PyCharm environment
+    -   plot time series of coordinate
+    -   added smoothing average line
 """
 # PyCharm: Press Shift+F10 to run script
 
+# todo make more modular, e.g., separate the NetCDF read from plotting and analyses
 import netCDF4 as nc
 import glob
 import matplotlib.pyplot as plt
@@ -44,7 +46,8 @@ end_date = datetime.datetime(2021,5,31) # year, month, day
 
 # ++++++++ MY FUNCTIONS +++++++
 
-from libs.modules.utils import indexContainingSubstring, closestNode
+from libs.modules.utils import indexContainingSubstring, closestNode, movingaverage
+
 
 def plotSmMaps(data,my_extent,labelstr,defaultScale,save_my_fig):
         
@@ -163,7 +166,9 @@ if plot_time_series:
     year_size = 365 #approx 5 years of daily data
     df['soil_moisture'].plot(marker='.', ms = 8, alpha=1, linestyle='None',
       figsize=(5*(math.ceil(df.size/year_size)),5), fontsize=my_fontsize, grid = True)
-    # sm_av = movingaverage(df['soil_moisture'], 50) # testing
+    # todo: smoothing average line (plots, but wrong date, add to dataframe?)
+    #sm_av = movingaverage(df['soil_moisture'], 50) # testing
+    #plt.plot(sm_av,'r')
     plt.title('SMAP timeseries for queried coordinate', fontsize=my_fontsize)
     plt.xlabel('', fontsize=my_fontsize)
     plt.ylabel('Soil moisture (m$^3$/ m$^3$)', fontsize=my_fontsize)  
