@@ -167,7 +167,9 @@ if plot_time_series:
     df['soil_moisture'].plot(marker='.', ms = 8, alpha=1, linestyle='None',
       figsize=(5*(math.ceil(df.size/year_size)),5), fontsize=my_fontsize, grid = True)
     # todo: smoothing average line (plots, but wrong date, add to dataframe?)
-    #sm_av = movingaverage(df['soil_moisture'], 50) # testing
+    sm_av = movingaverage(df['soil_moisture'], 50) # testing
+    df['sm_av'] = sm_av
+    df['sm_av'].plot('r')
     #plt.plot(sm_av,'r')
     plt.title('SMAP timeseries for queried coordinate', fontsize=my_fontsize)
     plt.xlabel('', fontsize=my_fontsize)
