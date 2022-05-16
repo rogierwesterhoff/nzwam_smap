@@ -6,7 +6,6 @@ Created on Fri Mar  4 11:10:44 2022
 """
 
 import numpy as np
-import matplotlib as plt
 
 def indexContainingSubstring(the_list, substring):
     for i, s in enumerate(the_list):

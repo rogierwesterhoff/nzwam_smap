@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Read and plot S-MAP L-band soil moisture data as provided in daily netcdfs by VanderSat
+Read and plot SMAP L-band soil moisture data as provided in daily netcdfs by VanderSat
 
 Developer: Rogier Westerhoff, GNS Science.
 Data produced by: VanderSat / Planet, The Netherlands
@@ -20,7 +20,6 @@ v006: 6 May 2022:
 """
 # PyCharm: Press Shift+F10 to run script
 
-# todo make more modular, e.g., separate the NetCDF read from plotting and analyses
 import os
 import netCDF4 as nc
 import glob
@@ -34,21 +33,21 @@ import pandas as pd
 import math
 
 # +++++++++++ INPUT VARIABLES +++++++++++++++++++++++
-plot_maps = False
+plot_maps = True
 plot_all_maps = False
-plot_time_series = True
+plot_time_series = False
 
 save_my_figs = True
 
 lat_point = -35.5
 lon_point = 174.0
 start_date = datetime.datetime(2016, 6, 1)
-end_date = datetime.datetime(2021, 5, 31)  # year, month, day
+end_date = datetime.datetime(2016, 6, 30)  # year, month, day
 
 # ++++++++ MY FUNCTIONS +++++++
 
 from libs.modules.utils import indexContainingSubstring, closestNode, movingaverage
-from libs.methods.my_methods import plotSmMaps
+from libs.modules.my_methods import plotSmMaps
 
 # +++++++ END OF FUNCTIONS +++++
 
@@ -77,7 +76,7 @@ index1 = indexContainingSubstring(file_list, start_date_str)
 index2 = indexContainingSubstring(file_list, end_date_str)
 
 # define an empty pandas dataframe for dates and soil moisture values, smoothing average and possibly more later
-column_names = ["date", "soil_moisture", "smooth_av"]
+column_names = ["date", "soil_moisture"]
 df = pd.DataFrame(columns=column_names)
 
 i = 0
@@ -86,25 +85,23 @@ for ifile in range(index1, index2 + 1):
 
     fn = file_list[ifile]
     ds = nc.Dataset(fn)
-    sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, :, :]
-    sm = np.ma.array(sm)  # ma because of the masked array
     date_label = ds.datetime[0:10]
 
     if ifile == index1:
         print(r'header first file: ' + date_label)
-        lat = ds['lat'][:]
-        lon = ds['lon'][:]
 
     if ifile == index2:
         print(r'header last file: ' + ds.datetime[0:10])
 
-    if plot_maps:
+    if plot_maps: # assumes that all files have the same array size
+        # sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, :, :]
+        sm = np.ma.array(ds['SM-SMAP-L-DESC_V4.0_100'][0, :, :]) # ma because of the masked array
+        lon_min = float(ds.__dict__['lon_min'])
+        lon_max = float(ds.__dict__['lon_max'])
+        lat_min = float(ds.__dict__['lat_min'])
+        lat_max = float(ds.__dict__['lat_max'])
+        my_extent = [lon_min, lon_max, lat_min, lat_max]
         if ifile == index1:
-            lon_min = float(ds.__dict__['lon_min'])
-            lon_max = float(ds.__dict__['lon_max'])
-            lat_min = float(ds.__dict__['lat_min'])
-            lat_max = float(ds.__dict__['lat_max'])
-            my_extent = [lon_min, lon_max, lat_min, lat_max]
             smMapSeries = sm
         else:
             smMapSeries = np.ma.dstack((smMapSeries, sm))
@@ -118,9 +115,11 @@ for ifile in range(index1, index2 + 1):
             plotSmMaps(sm_mean, my_extent, label_str, True, save_my_figs)
 
     if plot_time_series:
+        lat = ds['lat'][:]
+        lon = ds['lon'][:]
         index_lat = closestNode(lat_point, lat)  # only used in timeseries
         index_lon = closestNode(lon_point, lon)  # only used in timeseries
-        sm_q = sm[index_lon, index_lat]
+        sm_q = ds['SM-SMAP-L-DESC_V4.0_100'][0, index_lon, index_lat]
         if (bool(sm_q)):
             date_time_obj = datetime.datetime.strptime(ds.datetime, '%Y-%m-%d %H:%M:%S')
             df.loc[i] = [date_time_obj, sm_q]  # put data in dataframe
@@ -136,10 +135,11 @@ if plot_time_series:
     year_size = 365  # approx 5 years of daily data
     df['soil_moisture'].plot(marker='.', ms=8, alpha=1, linestyle='None',
                              figsize=(5 * (math.ceil(df.size / year_size)), 5), fontsize=my_fontsize, grid=True)
-    # todo: smoothing average line (plots, but wrong date, add to dataframe?)
-    sm_av = movingaverage(df['soil_moisture'], 50)  # testing
-    df['sm_av'] = sm_av
-    df['sm_av'].plot('r')
+    # # todo: smoothing average line (plots, but wrong date, add to dataframe?)
+    # sm_av = movingaverage(df['soil_moisture'], 50)  # testing
+    # df_tmp = pd.DataFrame({'sm_av': sm_av})
+    # df.append(df_tmp)
+    # df['sm_av'].plot('r')
     # plt.plot(sm_av,'r')
     plt.title('SMAP timeseries for queried coordinate', fontsize=my_fontsize)
     plt.xlabel('', fontsize=my_fontsize)
