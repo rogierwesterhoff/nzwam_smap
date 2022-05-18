@@ -7,8 +7,11 @@ Topnet data produced by: NIWA. New Zealand
 
 v001 - 2022-05-13: test for reading one file
 
+todo: put in function; save as pickled df; choose start and end date
 """
 # PyCharm: Press Shift+F10 to run script
+
+
 
 import os
 import netCDF4 as nc

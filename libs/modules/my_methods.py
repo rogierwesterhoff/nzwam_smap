@@ -121,11 +121,11 @@ def readNcSmapToDf(lat_point, lon_point, start_date, end_date, data_path):
     df['Time'] = pd.to_datetime(df['Time'], dayfirst=True)
     # set the index to timestamp
     df.set_index('Time', inplace=True)
-    print('Saving dataframe object')
     df.to_pickle(df_filename)
 
     elapsed = time.time() - t
     print(r'run time: ' + str(round(elapsed) / 60) + r' minutes')
+    print(r'Dataframe pickled in: ' + df_filename)
 
 def convert_nc_time(ds, tname):
     '''
