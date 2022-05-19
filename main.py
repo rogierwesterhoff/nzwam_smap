@@ -8,6 +8,7 @@ t = time.time()
 # step 1: read river reaches and their coordinates as a geopandas frame (output epsg: 2193)
 gdf_path = os.path.join(os.getcwd(), r'files\dataframes')
 gdf_file = 'nz_reaches_gdf'
+
 if not os.path.exists(os.path.join(gdf_path, gdf_file)):
     shape_fn = r'i:\\GroundWater\\Research\\NIWA_NationalHydrologyProgram\\Data\\SoilMoistureVanderSat\\TopnetFiles' \
                    r'\\GIS_DN2_3_Lake_strahler3\\rec2_3_order3_lakes_sites_watershed.shp'
