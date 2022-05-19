@@ -6,6 +6,7 @@ Created on Fri Mar  4 11:10:44 2022
 """
 
 import numpy as np
+import netCDF4 as nc
 
 def indexContainingSubstring(the_list, substring):
     for i, s in enumerate(the_list):
@@ -56,3 +57,26 @@ def find_nearest_index(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
+
+def convert_nc_time(ds, tname):
+    '''
+    Converts numeric netcdf time data to python datetime.
+
+    Parameters
+    ----------
+    ds: dataset from netcdf file as read in by ds = nc.Dataset(fn)
+    time: (str). ds column name that contains time information (eg. 'time')
+
+    Returns
+    -------
+    times: timeseries in python datetime
+    '''
+
+    nc_time = ds.variables[tname][:]
+    t_unit = ds.variables[tname].units
+
+    py_times = nc.num2date(nc_time[:].squeeze(), t_unit,
+                     only_use_cftime_datetimes=False,
+                     only_use_python_datetimes=True)
+
+    return py_times
