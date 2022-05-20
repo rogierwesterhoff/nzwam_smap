@@ -12,6 +12,7 @@ import datetime
 import pandas as pd
 import time
 import shapely.speedups
+
 shapely.speedups.enable()
 from shapely.geometry import Polygon
 import geopandas as gpd
@@ -25,7 +26,7 @@ start_date = datetime.datetime(2016, 6, 1)
 end_date = datetime.datetime(2016, 6, 30)  # year, month, day
 data_path = r'i:GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SmapData\NorthlandNcFiles'
 
-lat_point = -35.5 # todo: remove once within polygon is sorted
+lat_point = -35.5  # todo: remove once within polygon is sorted
 lon_point = 174.0
 
 gdf_path = os.path.join(os.getcwd(), r'files\dataframes')
@@ -33,7 +34,7 @@ gdf_file = 'nz_reaches_gdf'
 gdf_reaches = pd.read_pickle(os.path.join(gdf_path, gdf_file))
 
 # step 2: read a specific river catchment
-reach_idx = 0
+reach_idx = 2
 
 rchids = list(gdf_reaches.index)
 rchid = rchids[reach_idx]
@@ -45,7 +46,7 @@ reach_polygon = gdf_reaches.iloc[reach_idx].geometry
 print(reach_polygon)
 
 # ++++++ FUNCTIONS
-from libs.modules.utils import indexContainingSubstring, closestNode, inpolygon
+from libs.modules.utils import indexContainingSubstring, closestNode
 
 # +++++++ END OF FUNCTIONS +++++
 
@@ -71,9 +72,10 @@ column_names = ["Time", "soil_moisture"]
 df = pd.DataFrame(columns=column_names)
 
 i = 0
+lat = []
+lon = []
 # start loop
-# for ifile in range(index1, index2 + 1):
-for ifile in range(index1, index1 + 1):
+for ifile in range(index1, index2 + 1):
 
     fn = file_list[ifile]
     ds = nc.Dataset(fn)
@@ -85,43 +87,35 @@ for ifile in range(index1, index1 + 1):
     if ifile == index2:
         print(r'header last file: ' + ds.datetime[0:10])
 
-    # todo: only do this when filesize is different (hopefully only once then..)
-    lat = ds['lat'][:]
-    lon = ds['lon'][:]
+    # only do this when SMAP filesize is different (hopefully only once since it takes long..)
+    if len(ds['lat'][:]) != len(lat) or len(ds['lon'][:]) != len(lon):
+        print('Reading axes of smap nc in ifile '+str(ifile))
+        lat = ds['lat'][:]
+        lon = ds['lon'][:]
+        lon_grid, lat_grid = np.meshgrid(lon, lat)
+        df_coords = pd.DataFrame(lat_grid.compressed(), columns=['Latitude'])
+        df_coords['Longitude'] = lon_grid.compressed()
+        points_gdf = gpd.GeoDataFrame(df_coords, geometry=gpd.points_from_xy(df_coords.Longitude, df_coords.Latitude))
+        elapsed = time.time() - t
+        print(r'time elapsed: ' + str(round(elapsed) / 60) + r' minutes')
 
-    lon_grid, lat_grid = np.meshgrid(lon, lat)
-    # lats = np.transpose(lat_grid.compressed()) #.flatten()
-    # lons = np.transpose(lon_grid.compressed()) #.flatten()
-
-    lats = lat_grid.compressed()  # .flatten()
-    lons = lon_grid.compressed()  # .flatten()
-
-    df_coords = pd.DataFrame(lats, columns = ['Latitude'])
-    df_coords['Longitude'] = lons
-    points_gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df_coords.Longitude, df_coords.Latitude))
-    print('gdf of all points in mesh defined...')
-    elapsed = time.time() - t
-    print(r'time elapsed: ' + str(round(elapsed) / 60) + r' minutes')
-
+    sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, :, :]
+    lontest = lon_grid.compressed()
+    smtest = sm.compressed() # todo: check how you flatten a masked array
+    points_gdf['soil moisture'] = sm.compressed()
     points_gdf = points_gdf.loc[points_gdf.within(reach_polygon)]
+    sm_area = points_gdf['soil moisture'].mean
+
+    sm_area = np.ma.array(sm_area)  # ma because of the masked array
+    if bool(sm):  # if not empty
+        date_time_obj = datetime.datetime.strptime(ds.datetime, '%Y-%m-%d %H:%M:%S')
+        df.loc[i] = [date_time_obj, sm_area]  # put data in dataframe
+    else:
+        sm_area = np.nan
+
     print('gdf filtered for reach...')
     elapsed = time.time() - t
     print(r'time elapsed: ' + str(round(elapsed) / 60) + r' minutes')
-
-    # in_points2 = points.loc[in_points]
-    # print(reach_polygon[:,0])
-
-    # todo: below is still from the old file. Read data in for each coordinate in \
-    #  points_gdf and then take the mean + std
-    index_lat = closestNode(lat_point, lat)  # only used in timeseries
-    index_lon = closestNode(lon_point, lon)  # only used in timeseries
-    sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, index_lon, index_lat]
-    sm = np.ma.array(sm)  # ma because of the masked array
-    if bool(sm):  # if not empty
-        date_time_obj = datetime.datetime.strptime(ds.datetime, '%Y-%m-%d %H:%M:%S')
-        df.loc[i] = [date_time_obj, sm]  # put data in dataframe
-    else:
-        sm = np.nan
 
     i += 1
 

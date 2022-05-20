@@ -82,20 +82,3 @@ def convert_nc_time(ds, tname):
                      only_use_python_datetimes=True)
 
     return py_times
-
-def inpolygon(xq, yq, xv, yv):
-    """
-    :param xq: x coordinate of the query point
-    :param yq: y coordinate of the query point
-    :param xv: x coordinates of the shape
-    :param yv: y coordinates of the shape
-    :return: x, y coordinates that are in the shape (not on)
-    """
-    shape = xq.shape
-    xq = xq.reshape(-1)
-    yq = yq.reshape(-1)
-    xv = xv.reshape(-1)
-    yv = yv.reshape(-1)
-    q = [(xq[i], yq[i]) for i in range(xq.shape[0])]
-    p = path.Path([(xv[i], yv[i]) for i in range(xv.shape[0])])
-    return p.contains_points(q).reshape(shape)
