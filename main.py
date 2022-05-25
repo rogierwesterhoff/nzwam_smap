@@ -28,10 +28,14 @@ my_file = r'streamq_daily_average_2016060100_2021053100_utc_topnet_01000000_stra
 nc_fn = os.path.join(my_path, my_file)
 soilh2o_df = read_topnet_soilh2o(rchid, nc_fn) # also possible to plot and save, see function input
 
-# step 3: read SMAP data within river reach polygon
+# step 3: read SMAP data within river reach polygon and compile for each rchid. Store as gdf
 
+# step 4: merge dataframes
 
-# step 4: check if field observations are available within the reach
+# step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
+
+# step 6: now go do some data science!
+
 
 # start_date = datetime.datetime(2016, 6, 1)
 # end_date = datetime.datetime(2016, 6, 30)  # year, month, day

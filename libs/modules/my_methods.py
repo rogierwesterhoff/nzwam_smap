@@ -56,8 +56,6 @@ def readNcSmapToDf(lat_point, lon_point, start_date, end_date, data_path):
     readNcSmapToDf(lat_point, lon_point, start_date, end_date, data_path)
     """
 
-    # todo: check whether geopandas is needed
-
     from libs.modules.utils import indexContainingSubstring, closestNode
 
     # +++++++ END OF FUNCTIONS +++++
@@ -99,7 +97,7 @@ def readNcSmapToDf(lat_point, lon_point, start_date, end_date, data_path):
 
         lat = ds['lat'][:]
         lon = ds['lon'][:]
-        # todo: check if these could also be a range (e.g. all indices within a polygon)
+
         index_lat = closestNode(lat_point, lat)  # only used in timeseries
         index_lon = closestNode(lon_point, lon)  # only used in timeseries
         sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, index_lon, index_lat]
