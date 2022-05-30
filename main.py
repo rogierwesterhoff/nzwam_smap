@@ -29,6 +29,9 @@ nc_fn = os.path.join(my_path, my_file)
 soilh2o_df = read_topnet_soilh2o(rchid, nc_fn) # also possible to plot and save, see function input
 
 # step 3: read SMAP data within river reach polygon and compile for each rchid. Store as gdf
+df_path = gdf_path
+df_file = 'smap_per_reach_df'
+smap_df = pd.read_pickle(os.path.join(df_path, df_file))
 
 # step 4: merge dataframes
 
