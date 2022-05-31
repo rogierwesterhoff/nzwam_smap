@@ -60,8 +60,8 @@ rchids = list(gdf_reaches.index)
 
 # start loop
 # todo: check if pre-allocation all columns helps with speed/memory
-# for reach_idx in range(len(rchids)):
-for reach_idx in range(3):
+for reach_idx in range(len(rchids)):
+# for reach_idx in range(3):
     rchid = rchids[reach_idx]
     # define an empty pandas dataframe for dates and soil moisture values for the rchid
 
