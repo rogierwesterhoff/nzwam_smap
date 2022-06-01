@@ -4,9 +4,14 @@
 
  """
 
+# todo: a beforehand test to check whether all SMAP images are of the same size.\
+#  If so, we could speed up the process significantly.
+
 import os
 import netCDF4 as nc
 import glob
+
+import numpy
 import numpy as np
 import datetime
 import pandas as pd
@@ -14,9 +19,10 @@ import time
 import shapely.speedups
 import maya
 import geopandas as gpd
-
+import cProfile
 shapely.speedups.enable()
 
+import warnings
 # ++++++ FUNCTIONS
 from libs.modules.utils import indexContainingSubstring, closestNode
 
@@ -26,6 +32,8 @@ t = time.time()
 
 # +++++ INPUT VARS
 save_to_pickle = True
+
+test_run_times = False
 
 start_date = datetime.datetime(2016, 6, 1)
 end_date = datetime.datetime(2021, 5, 31)  # year, month, day
@@ -58,43 +66,46 @@ gdf_reaches = gdf_reaches.to_crs(4326)
 # print(r'crs projected: ', str(gdf_reaches.crs))
 rchids = list(gdf_reaches.index)
 
+## USE FOR TESTING
+if test_run_times:
+    pr = cProfile.Profile() # instantiate
+    pr.enable() # enable
+
+# your function call or code lines go here
+d= {}
 # start loop
-# todo: check if pre-allocation all columns helps with speed/memory
+# rchids = rchids[2902:] # for testing
 for reach_idx in range(len(rchids)):
-# for reach_idx in range(3):
     rchid = rchids[reach_idx]
     # define an empty pandas dataframe for dates and soil moisture values for the rchid
 
     column_names = ["Time", str(rchid)]
-    df_in_loop = pd.DataFrame(columns=column_names)
+    d[rchid] = pd.DataFrame(columns=column_names)
 
     reach_polygon = gdf_reaches.iloc[reach_idx].geometry
     reach_bounds = reach_polygon.bounds
 
-    elapsed = time.time() - t
-    print(r"reach number: " + str(reach_idx+1) + " of " + str(len(rchids)))
-    print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
+    print(r"reach number: " + str(reach_idx+1) + " of " + str(len(rchids)) + ", rchid: " + str(rchid))
 
     i = 0
     lat = []
     lon = []
+    # for ifile in range(index1, index1 + 50):
     for ifile in range(index1, index2 + 1):
 
         fn = file_list[ifile]
         ds = nc.Dataset(fn)
-        date_label = ds.datetime[0:10]
 
-        if ifile == index1:
-            print(r'header first file: ' + date_label)
-
-        if ifile == index2:
+        if reach_idx == 0 and ifile == index1:
+            print(r'header first file: ' + ds.datetime[0:10])
+        if reach_idx == 0 and ifile == index2:
             print(r'header last file: ' + ds.datetime[0:10])
 
         # only do this when SMAP filesize is different (hopefully only once since it takes long..)
         if len(ds['lat'][:]) != len(lat) or len(ds['lon'][:]) != len(lon):
             # print('Reading axes of smap nc in ifile '+str(ifile))
-            lon = ds['lon'][:]
-            lat = ds['lat'][:]
+            lon = numpy.single(ds['lon'][:])
+            lat = numpy.single(ds['lat'][:])
             # find bounding box of reach and only load those (saves a heap of time)
             index_lon_min = closestNode(reach_bounds[0], lon)  # only used in timeseries
             index_lon_max = closestNode(reach_bounds[2], lon)  # only used in timeseries
@@ -105,42 +116,42 @@ for reach_idx in range(len(rchids)):
             df_coords = pd.DataFrame(lat_grid.compressed(), columns=['Latitude'])
             df_coords['Longitude'] = lon_grid.compressed()
             points_gdf = gpd.GeoDataFrame(df_coords, geometry=gpd.points_from_xy(df_coords.Longitude, df_coords.Latitude))
+            my_filter = points_gdf.within(reach_polygon)
             # elapsed = time.time() - t
             # print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
 
-        sm = ds['SM-SMAP-L-DESC_V4.0_100'][0, index_lon_min:index_lon_max+1, index_lat_min:index_lat_max+1]
-        # sm = sm.filled(np.nan).flatten()
-        gdf_tmp = points_gdf
-        gdf_tmp['soil moisture'] = sm.filled(np.nan).flatten()
-        gdf_tmp = gdf_tmp.loc[points_gdf.within(reach_polygon)]
-        sm_reach = gdf_tmp['soil moisture'].mean()
-        # print(f"sm_reach: {sm_reach:.3f} m3/m3")
-        # date_time_obj = datetime.datetime.strptime(ds.datetime, '%Y-%m-%d %H:%M:%S')
+        if index_lon_max - index_lon_min <= 1 or index_lat_max - index_lat_min <= 1:
+            sm_reach = np.nan
+            warnings.warn('warning: error in indices or reach too small, putting in a nan value... ')
+        else:
+            sm = np.single(ds['SM-SMAP-L-DESC_V4.0_100'][0, index_lon_min:index_lon_max+1, index_lat_min:index_lat_max+1])
+            mx = np.ma.masked_invalid(sm)
+            if sum(sum(mx.mask)) == mx.mask.size:
+                sm_reach = np.nan
+            else:
+                gdf_tmp = points_gdf
+                gdf_tmp['soil moisture'] = sm.filled(np.nan).flatten()
+                gdf_tmp = gdf_tmp.loc[my_filter]
+                sm_reach = gdf_tmp['soil moisture'].mean()
 
         date_time_obj = maya.parse(ds.datetime).datetime()
-
-        # if not bool(sm_reach):
-        #     sm_reach = np.nan
-
-        df_in_loop.loc[i] = [date_time_obj, sm_reach]  # put data in dataframe
-
-        # print('gdf filtered for reach...')
-        # elapsed = time.time() - t
-        # print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
-
+        d[rchid].loc[i] = [date_time_obj, sm_reach]  # put data in dataframe
         i += 1
 
     # the below line adds the time column for every reach. That might seem inefficient,
     # but it does open up the possibility for timeseries with different time intervals.
-    df_in_loop.set_index('Time', inplace=True)
-    if reach_idx == 0:
-        df_whole = df_in_loop
-    else:
-        df_whole = pd.concat([df_whole,df_in_loop], axis = 1)
+    d[rchid].set_index('Time', inplace=True)
 
-# df_whole['Time'] = pd.to_datetime(df_whole['Time'], dayfirst=True) # todo: check if this is necessary. I might have already been done by maya
-# # set the index to timestamp
-# df_whole.set_index('Time', inplace=True)
+    elapsed = time.time() - t
+    print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
+
+df_whole = pd.concat(d.values(), axis=1)
+df_whole = df_whole.fillna('NaN').astype('float') # convert NaT to NaN and cast values to float
+
+## cProfile testing
+if test_run_times:
+    pr.disable() # disable
+    pr.print_stats(sort="cumtime") # log
 
 if save_to_pickle:
     work_dir = os.getcwd()
