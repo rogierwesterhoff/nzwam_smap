@@ -74,7 +74,7 @@ if test_run_times:
 # your function call or code lines go here
 d= {}
 # start loop
-# rchids = rchids[2902:] # for testing
+rchids = rchids[2000:] # for testing
 for reach_idx in range(len(rchids)):
     rchid = rchids[reach_idx]
     # define an empty pandas dataframe for dates and soil moisture values for the rchid
@@ -146,7 +146,8 @@ for reach_idx in range(len(rchids)):
     print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
 
 df_whole = pd.concat(d.values(), axis=1)
-df_whole = df_whole.fillna('NaN').astype('float') # convert NaT to NaN and cast values to float
+# todo test the line below later (this seems to be the culprit)
+# df_whole = df_whole.fillna('NaN').astype('float') # convert NaT to NaN and cast values to float
 
 ## cProfile testing
 if test_run_times:
