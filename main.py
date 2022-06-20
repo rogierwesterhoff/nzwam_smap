@@ -30,9 +30,14 @@ soilh2o_df = read_topnet_soilh2o(rchid, nc_fn) # also possible to plot and save,
 
 # step 3: read SMAP data within river reach polygon and compile for each rchid. Store as gdf
 df_path = gdf_path
-df_file = 'smap_per_reach_df'
-smap_df = pd.read_pickle(os.path.join(df_path, df_file))
-
+df_file = 'smap_per_reach_df0_1000'
+df_a = pd.read_pickle(os.path.join(df_path, df_file))
+df_file = 'smap_per_reach_df1000_2000'
+df_b = pd.read_pickle(os.path.join(df_path, df_file))
+df_file = 'smap_per_reach_df2000_2905'
+df_c = pd.read_pickle(os.path.join(df_path, df_file))
+smap_df = pd.concat([df_a, df_b, df_c], axis=1)
+del df_a, df_b, df_c
 # step 4: merge dataframes
 
 # step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
