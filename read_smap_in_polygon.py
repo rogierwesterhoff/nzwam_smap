@@ -4,9 +4,6 @@
 
  """
 
-# todo: a beforehand test to check whether all SMAP images are of the same size.\
-#  If so, we could speed up the process significantly.
-
 import os
 import netCDF4 as nc
 import glob

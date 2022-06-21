@@ -202,7 +202,7 @@ def read_nz_reaches(shape_fn, roi_shape_fn, plot_maps=False, save_to_pickle=True
     # print(r'run time: ' + str(round(elapsed) / 60) + r' minutes')
 
 
-def read_topnet_soilh2o(reach_number, nc_fn, plot_time_series=False, save_my_figs=False):
+def read_topnet_soilh2o(reach_numbers, nc_fn, plot_time_series=False, save_my_figs=False):
     """
     Read and plot Topnet data as provided by NIWA
 
@@ -211,14 +211,13 @@ def read_topnet_soilh2o(reach_number, nc_fn, plot_time_series=False, save_my_fig
 
     v001 - 2022-05-13: test for reading one file
     v002 - embedded as function to reach in based on reach id number (rchid)
+    v003 - 2022-06-21: changed input such that reach_numbers input can be one integer or list
 
-    reach_number: as provided by the Topnet reaches file (NIWA)
+    reach_numbers: reach ids as known in Topnet reaches file (NIWA)
     nc_fn: filename (netCDF) that contains the soil moisture timeseries
     plot_time_series: whether or not to plot timeseries (default = False)
     save_my_figs: whether or not to save the figure (default = False)
     """
-
-    print(r'reading soil moisture timeseries for reach: ' + str(reach_number))
 
     # ++++++++ IMPORT FUNCTIONS +++++++
     from libs.modules.utils import convert_nc_time
@@ -230,27 +229,49 @@ def read_topnet_soilh2o(reach_number, nc_fn, plot_time_series=False, save_my_fig
     ds = nc.Dataset(nc_fn)
     # print(ds)
     # print(ds.__dict__)
+    rchids = np.ma.array(ds['rchid'][:])  #
 
-    reach_ids = np.ma.array(ds['rchid'][:])  #
-    reach_idx = np.where(reach_ids == reach_number)
+    d = {}
+    # start loop over reach numbers here
+    if isinstance(reach_numbers,int):
+        reach_numbers = [reach_numbers]
 
-    if np.sum(reach_idx) == 0:
-        raise Exception('Topnet rchid number ', str(reach_number), ' does not exist')
-    reach_idx = int(reach_idx[0])
-    ens_idx = 0  # not an ensemble, just one dataset
+    for i in range(len(reach_numbers)):
+        # print(r'i = ' + str(i))
+        reach_number = int(reach_numbers[i])
+        # print(r'reading soil moisture timeseries for reach: ' + str(reach_number))
 
-    reach_id = np.ma.array(ds['rchid'][reach_idx])  # int32 rchid(nrch)
-    soil_h2o = np.ma.array(ds['soilh2o'][:, reach_idx, ens_idx])  # float32 soilh2o(time, nrch, nens)
-    sm_saturated = np.ma.array(ds['smcsatn'][reach_idx])  # float32 smcsatn(nrch)
-    sm_field_capacity = np.ma.array(ds['smfield'][reach_idx])  # float32 smfield(nrch)
-    sm_perc_of_smcsatn = 100 * soil_h2o / sm_saturated  #
-    column_names = ["soil_moisture"]
+        reach_idx = np.where(rchids == reach_number)
 
-    print(f"mean soil moisture: {np.nanmean(soil_h2o):.3f} m3/m3")
+        try:
+            if np.sum(reach_idx) == 0:
+                 print('Warning: Topnet rchid number ', str(reach_number), ' does not exist (i= ', str(i), ').')
+            reach_idx = int(reach_idx[0])
+            ens_idx = 0  # not an ensemble, just one dataset
+        except:
+            pass
 
-    # converting netcdf time
-    py_times = convert_nc_time(ds, 'time')  # float64 time(time)
-    df = pd.DataFrame(index=py_times, data=soil_h2o, columns=column_names)
+        reach_id = np.ma.array(ds['rchid'][reach_idx])  # int32 rchid(nrch)
+        soil_h2o = np.ma.array(ds['soilh2o'][:, reach_idx, ens_idx])  # float32 soilh2o(time, nrch, nens)
+        sm_saturated = np.ma.array(ds['smcsatn'][reach_idx])  # float32 smcsatn(nrch)
+        sm_field_capacity = np.ma.array(ds['smfield'][reach_idx])  # float32 smfield(nrch)
+        sm_perc_of_smcsatn = 100 * soil_h2o / sm_saturated  #
+
+        # print(f"mean soil moisture: {np.nanmean(soil_h2o):.3f} m3/m3")
+
+        # converting netcdf time
+        py_times = convert_nc_time(ds, 'time')  # float64 time(time)
+        d[reach_number] = pd.DataFrame(
+            {
+                'Time': py_times,
+                str(reach_number): soil_h2o,
+            },
+            # index = pytimes,
+        )
+
+        d[reach_number].set_index('Time', inplace=True)
+
+    df = pd.concat(d.values(), axis=1)
 
     if plot_time_series:
 
