@@ -26,7 +26,7 @@ df_name = os.path.join(df_path, df_name_soilh2o)
 existing_pickle = True
 if existing_pickle:
     print('Reading topnet soilh2o from dataframe object ' + df_path)
-    soilh2o_df = pd.read_pickle(df_name)
+    topnet_df = pd.read_pickle(df_name)
 else:
     rchids = list(gdf_reaches.index)
     input_rchids = rchids[:]
@@ -35,14 +35,14 @@ else:
     my_file = r'streamq_daily_average_2016060100_2021053100_utc_topnet_01000000_strahler1-SoilM-NM.nc'
     nc_fn = os.path.join(my_path, my_file)
     print('reading topnet soilh2o...')
-    df = read_topnet_soilh2o(input_rchids, nc_fn) # also possible to plot and save, see function input
+    topnet_df = read_topnet_soilh2o(input_rchids, nc_fn) # also possible to plot and save, see function input
 
     if not os.path.exists(df_path):
         os.mkdir(df_path)
 
-    df.to_pickle(df_name)
+    topnet_df.to_pickle(df_name)
 
-# step 3: read SMAP data within river reach polygon and compile for each rchid. Store as gdf
+# step 3: read SMAP data within river reach polygon and compile for each rchid.
 print('reading SMAP soil moisture (files were pre-processed earlier) ...')
 df_path = gdf_path
 df_file = 'smap_per_reach_df0_1000'
@@ -54,9 +54,63 @@ df_c = pd.read_pickle(os.path.join(df_path, df_file))
 smap_df = pd.concat([df_a, df_b, df_c], axis=1)
 del df_a, df_b, df_c
 
-smap_df = smap_df.tz_localize(None)
+smap_df = smap_df.tz_localize(None) # time stamp is now the same format as soilh2o_df
 
-# step 4: merge dataframes
+# step 4: compare dataframes
+# todo: put in function when done testing
+# def compare_dataframes(smap_df, topnet_df, gdf_reaches):
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+plot_time_series = False
+
+gdf_reaches = pd.read_pickle(os.path.join(gdf_path, gdf_file))
+rchids = list(gdf_reaches.index)
+input_rchids = rchids[0:10]
+
+if isinstance(input_rchids, int):
+    input_rchids = [input_rchids]
+
+# round dates to day so they can be compared
+smap_df.index = smap_df.index.floor('D')
+topnet_df.index = topnet_df.index.floor('D')
+
+for i in range(len(input_rchids)):
+    rchid = input_rchids[i]
+    # print('rchid = ' + str(rchid))
+    smap_col_df = smap_df[str(rchid)]
+    topnet_col_df = topnet_df[str(rchid)]
+    if np.sum(smap_col_df.count()) > 0 and np.sum(topnet_col_df.count()) > 0:
+        smap_col_df = smap_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+        topnet_col_df = topnet_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+        # calculate R2 and add to gdfreaches as a column
+        # https://www.statology.org/r-squared-in-python/
+        
+        if plot_time_series:
+            print('plot rchid = ' + str(rchid))
+            saveFigName = r'rchid_' + str(rchid) + '_topnet_smap'
+            my_fontsize = 14
+            year_size = 365  # approx 5 years of daily data
+
+            ax = smap_col_df.plot(marker='.', ms=5, alpha=1, linestyle='None',
+                                     figsize=(5 * (math.ceil(smap_col_df.size / year_size)), 5),
+                                  fontsize=my_fontsize, grid=True, label='smap')
+            topnet_col_df.plot(ax=ax, label='topnet')
+            plt.legend(loc='best')
+            plt.title(r'soil moisture in reach id ' + str(rchid), fontsize=my_fontsize)
+            plt.xlabel('', fontsize=my_fontsize)
+            plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
+            plt.tight_layout()
+            plt.tight_layout()
+            fig_path = os.path.join(os.getcwd(), r'files\outputs')
+            if not os.path.exists(fig_path):
+                os.mkdir(fig_path)
+            saveFigName = os.path.join(fig_path, saveFigName)
+            plt.savefig(saveFigName + '.png', dpi=300)
+            # plt.savefig(saveFigName + '.eps', dpi=300)
+            plt.close()
+            # plt.show()
+
 
 
 # step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
