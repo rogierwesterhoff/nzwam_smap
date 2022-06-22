@@ -1,4 +1,5 @@
 from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o
+from libs.modules.utils import linear_regression_r2
 import time
 import os
 import pandas as pd
@@ -58,15 +59,22 @@ smap_df = smap_df.tz_localize(None) # time stamp is now the same format as soilh
 
 # step 4: compare dataframes
 # todo: put in function when done testing
-# def compare_dataframes(smap_df, topnet_df, gdf_reaches):
+# def compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file):
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 plot_time_series = False
+save_new_gdf = True
+plot_correlation_maps = True
 
 gdf_reaches = pd.read_pickle(os.path.join(gdf_path, gdf_file))
 rchids = list(gdf_reaches.index)
-input_rchids = rchids[0:10]
+input_rchids = rchids[:]
+
+my_r2s = [np.nan] * len(rchids)
+
+if not input_rchids[0] == rchids[0]:
+    raise Exception("input rchid has to start with 0 to follow the first input of gdf_reaches")
 
 if isinstance(input_rchids, int):
     input_rchids = [input_rchids]
@@ -83,9 +91,26 @@ for i in range(len(input_rchids)):
     if np.sum(smap_col_df.count()) > 0 and np.sum(topnet_col_df.count()) > 0:
         smap_col_df = smap_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
         topnet_col_df = topnet_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+
+        frames = [smap_col_df, topnet_col_df]
+        joint_df = pd.concat(frames, axis=1)
+        joint_df.dropna(inplace=True)
+        joint_df.columns = [r'smap_'+str(rchid), r'topnet_'+str(rchid)]
         # calculate R2 and add to gdfreaches as a column
         # https://www.statology.org/r-squared-in-python/
-        
+        # R2 values of:
+        # - smap to topnet (done)
+        # - use that to interpolate missing smap
+        # - smap to field observations(with and without interpolate)
+        # - topnet to field observations
+        # - smap and topnet to field observations(with and without interpolate)
+
+        # calculate R-squared of regression model
+        r_squared = linear_regression_r2(joint_df[r'smap_'+str(rchid)], joint_df[r'topnet_'+str(rchid)])
+        # view R-squared value
+        # print(r_squared)
+        my_r2s[i] = r_squared
+
         if plot_time_series:
             print('plot rchid = ' + str(rchid))
             saveFigName = r'rchid_' + str(rchid) + '_topnet_smap'
@@ -111,8 +136,21 @@ for i in range(len(input_rchids)):
             plt.close()
             # plt.show()
 
+if save_new_gdf:
+    gdf_reaches['r2_smap_topnet']=my_r2s
+    gdf_reaches.to_pickle(os.path.join(gdf_path, gdf_file+'_r2'))
 
-
+if plot_correlation_maps:
+    gdf = gdf_reaches.set_geometry("centroid")
+    gdf.dropna().plot("r2_smap_topnet", legend=True, markersize=5)
+    # plt.show()
+    saveFigName = 'r2_smap_topnet'
+    fig_path = os.path.join(os.getcwd(), r'files\outputs')
+    if not os.path.exists(fig_path):
+        os.mkdir(fig_path)
+    plt.savefig(os.path.join(fig_path, saveFigName) + '.png', dpi=300)
+    plt.close()
+    
 # step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
 
 # step 6: now go do some data science!
