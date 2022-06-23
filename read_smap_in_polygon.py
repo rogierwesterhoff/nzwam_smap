@@ -143,8 +143,6 @@ for reach_idx in range(len(rchids)):
     print(f"time elapsed: {round(elapsed) / 60:.3f} minutes")
 
 df_whole = pd.concat(d.values(), axis=1)
-# todo test the line below later (this seems to be the culprit)
-# df_whole = df_whole.fillna('NaN').astype('float') # convert NaT to NaN and cast values to float
 
 ## cProfile testing
 if test_run_times:

@@ -291,6 +291,87 @@ def read_topnet_soilh2o(reach_numbers, nc_fn, plot_time_series=False, save_my_fi
 
     return df
 
+def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps = False, save_to_pickle = True):
+    import os
+    import netCDF4 as nc
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import geopandas as gpd
+
+    from libs.modules.utils import convert_nc_time
+
+    # data_path = r'i:\GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SoilMoistureObservations'
+    # data_fn = 'NZWaM_SM_DN3_2016-2021_20220412.nc'
+    # roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
+    # plot_maps = False
+    # save_to_pickle = True
+
+    fn = os.path.join(data_path, data_fn)
+    ds = nc.Dataset(fn)
+    print(ds)
+
+    # write a pandas df for time (index), station_rchid (columns) and soilh2o
+    # soil_h2o = np.ma.array(ds['soilh2o'][:, reach_idx, ens_idx])  # float32 soilh2o(time, nrch, nens)
+    station_id = np.ma.array(ds['station'][:])
+    station_rchid = np.ma.array(ds['station_rchid'][:])
+    soil_h2o = np.ma.array(ds['soilh2o'][:, :])  # float64 soilh2o(time, station) in mm [0 - 1000]
+    sample_times = np.ma.array(
+        ds['time'][:])  # int64 time(time). units: hours since 2015-12-31 12:00:00+00:00, calendar: proleptic_gregorian
+    lons = np.ma.array(ds['longitude'][:])  # float64 longitude(station)
+    lats = np.ma.array(ds['latitude'][:])  # float64 latitude(station)
+
+    # write pytimes
+    py_times = convert_nc_time(ds, 'time')
+
+    df = pd.DataFrame(columns=station_rchid, data=soil_h2o / 1000, index=py_times)
+    df = df.shift(periods=12, freq="H")  # shift 12 hours
+
+    # write a geopandas to store information on all soil moisture stations
+    df_tmp = pd.DataFrame(
+        {'Station': station_id,
+         'Station Rchid': station_rchid,
+         'Latitude': lats,
+         'Longitude': lons})
+
+    gdf = gpd.GeoDataFrame(df_tmp, geometry=gpd.points_from_xy(df_tmp.Longitude, df_tmp.Latitude)) \
+        .set_crs(4326, allow_override=True, inplace=True)
+    # print(r'crs gdf: ', str(gdf.crs))
+
+    # read in roi and define what obs are within polygon
+    s = gpd.read_file(roi_shape_fn).to_crs(4326)  # print(r'crs roi shapefile: ', str(s.crs))
+    gdf_in = gdf.within(s.iloc[0].geometry)  # strip s down to the polygon
+
+    if plot_maps:  # plot map with field obs in shape
+        my_fontsize = 12
+        ax = s.plot(color='white', edgecolor='black')
+        gdf[gdf_in].plot(ax=ax, color='red')
+        ax.set_xlabel('Longitude', fontsize=my_fontsize)
+        ax.set_ylabel('Latitude', fontsize=my_fontsize)
+        plt.savefig(r'files/outputs/locations_field_obs.png', dpi=300)
+        plt.close()
+
+    if save_to_pickle:
+        work_dir = os.getcwd()
+        df_path = os.path.join(work_dir, r'files\dataframes')
+        if not os.path.exists(df_path):
+            os.mkdir(df_path)
+
+        gdf_output_fn = os.path.join(df_path, 'field_obs_roi_gdf')
+        gdf[gdf_in].to_pickle(gdf_output_fn)
+
+        df_output_fn = os.path.join(df_path, 'field_obs_roi_df')
+        df[station_rchid[gdf_in]].to_pickle(gdf_output_fn)
+
+        gdf_output_fn = os.path.join(df_path, 'field_obs_nz_gdf')
+        gdf.to_pickle(gdf_output_fn)
+
+        df_output_fn = os.path.join(df_path, 'field_obs_nz_df')
+        df.to_pickle(gdf_output_fn)
+
+        print(r'GeoDataframes saved in files/dataframes.')
+
+    return gdf[gdf_in], df[station_rchid[gdf_in]]
 
 def compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file, plot_time_series=False, save_new_gdf=True,
                        plot_correlation_maps=True):

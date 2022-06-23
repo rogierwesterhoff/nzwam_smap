@@ -1,4 +1,4 @@
-from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o, compare_dataframes
+from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o, compare_dataframes, read_field_obs_soilh2o
 from libs.modules.utils import linear_regression_r2
 import time
 import os
@@ -57,10 +57,15 @@ del df_a, df_b, df_c
 
 smap_df = smap_df.tz_localize(None) # time stamp is now the same format as soilh2o_df
 
-# step 4: compare dataframes
-gdf_reaches_with_r2 = compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file)
+# step 4: read field observations and look for closest SMAP pixel(s?). Store as gdf
+data_path = r'i:\GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SoilMoistureObservations'
+data_fn = 'NZWaM_SM_DN3_2016-2021_20220412.nc'
+roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
 
-# step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
+gdf_obs, df_obs = read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn)
+
+# step 5: compare dataframes
+gdf_reaches_with_r2 = compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file)
 
 # step 6: now go do some data science!
 
