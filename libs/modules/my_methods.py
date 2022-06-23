@@ -309,7 +309,7 @@ def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps = False, 
 
     fn = os.path.join(data_path, data_fn)
     ds = nc.Dataset(fn)
-    print(ds)
+    # print(ds)
 
     # write a pandas df for time (index), station_rchid (columns) and soilh2o
     # soil_h2o = np.ma.array(ds['soilh2o'][:, reach_idx, ens_idx])  # float32 soilh2o(time, nrch, nens)
@@ -373,7 +373,7 @@ def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps = False, 
 
     return gdf[gdf_in], df[station_rchid[gdf_in]]
 
-def compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file, plot_time_series=False, save_new_gdf=True,
+def compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file, plot_time_series=False, save_new_gdf=True,
                        plot_correlation_maps=True):
     import matplotlib.pyplot as plt
     import numpy as np

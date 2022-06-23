@@ -1,8 +1,9 @@
-from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o, compare_dataframes, read_field_obs_soilh2o
+from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o, compare_dataframes_smap_topnet, read_field_obs_soilh2o
 from libs.modules.utils import linear_regression_r2
 import time
 import os
 import pandas as pd
+
 
 t = time.time()
 
@@ -57,17 +58,37 @@ del df_a, df_b, df_c
 
 smap_df = smap_df.tz_localize(None) # time stamp is now the same format as soilh2o_df
 
-# step 4: read field observations and look for closest SMAP pixel(s?). Store as gdf
+# # step 4: compare dataframes of smap to topnet
+# gdf_reaches_with_r2 = compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file)
+
+# step 5: read field observations and look for closest SMAP pixel(s?). Store as gdf
 data_path = r'i:\GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SoilMoistureObservations'
 data_fn = 'NZWaM_SM_DN3_2016-2021_20220412.nc'
 roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
 
 gdf_obs, df_obs = read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn)
 
-# step 5: compare dataframes
-gdf_reaches_with_r2 = compare_dataframes(smap_df, topnet_df, gdf_path, gdf_file)
+# step 6: compare dataframes of topnet to field_obs
+import numpy as np
+input_rchids = list(gdf_obs['Station Rchid'])
+my_r2s = [np.nan] * len(input_rchids)
+#my_topnet_df = topnet_df[input_rchids] # todo: this doesn't work as reachids do not compare (Strahler level?). Find closest coordinate instead
 
-# step 6: now go do some data science!
+gdf_obs_nztm = gdf_obs.to_crs(2193)
+for i in range(len(input_rchids)):
+    obs_coord = gdf_obs_nztm.iloc[i].geometry
+    gdf_in = gdf_reaches.contains(obs_coord)
+    my_reach = gdf_reaches[gdf_in]
+    # todo: check if not empty
+
+    #todo: take values of both datasets and put in dataframe
+    print(my_reach)
+
+df_obs.index = df_obs.index.floor('D')
+topnet_df.index = topnet_df.index.floor('D')
+
+# step 7: compare dataframes of smap to field_obs
+
 
 
 # start_date = datetime.datetime(2016, 6, 1)
