@@ -465,3 +465,109 @@ def compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file, plot_
         plt.close()
 
     return gdf_reaches
+
+
+def compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet, plot_time_series=False, save_new_gdf=False,
+                                  plot_correlation_maps=False):
+    import numpy as np
+    from libs.modules.utils import linear_regression_r2
+
+    input_rchids = list(gdf_obs['Station Rchid'])
+    my_r2s = [np.nan] * len(input_rchids)
+
+    gdf_obs_nztm = gdf_obs.to_crs(2193)
+    df_obs_list = []
+    df_topnet_list = []
+    gdf_index_list = []
+    for i in range(len(input_rchids)):
+        obs_coord = gdf_obs_nztm.iloc[i].geometry
+        gdf_in = gdf_reaches.contains(obs_coord)
+        if len(gdf_in[gdf_in]) == 1:  # check if not empty
+            my_reach = gdf_reaches[gdf_in]
+            df_obs_list.append(input_rchids[i])
+            df_topnet_list.append(str(my_reach.iloc[0].name))
+            gdf_index_list.append(True)
+        else:
+            gdf_index_list.append(False)
+
+        # d_topnet[str(my_reach.iloc[0].name)] = topnet_df[str(my_reach.iloc[0].name)].copy()
+
+    df_obs2_compare = df_obs[df_obs_list].copy()
+    df_obs2_compare.columns = [str(col) + '_obs' for col in df_obs2_compare.columns]
+    df_topnet2_compare = df_topnet[df_topnet_list].copy()
+    df_topnet2_compare.columns = [str(col) + '_topnet' for col in df_topnet2_compare.columns]
+    df_obs2_compare = df_obs2_compare.resample('D').mean()
+    df_topnet2_compare = df_topnet2_compare.resample('D').mean()
+
+    my_r2s = [np.nan] * len(df_obs_list)
+    for i in range(len(df_obs_list)):
+        obs_col = df_obs2_compare[df_obs2_compare.columns[i]]
+        topnet_col = df_topnet2_compare[df_topnet2_compare.columns[i]]
+        if np.sum(obs_col.count()) > 0 and np.sum(topnet_col.count()) > 0:
+            # smap_col_df = smap_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+            # topnet_col_df = topnet_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+
+            frames = [obs_col, topnet_col]
+            joint_df = pd.concat(frames, axis=1)
+            joint_df.dropna(inplace=True)
+            # joint_df.columns = [r'obs_' + str(rchid), r'topnet_' + str(rchid)]
+            # calculate R2 and add to gdfreaches as a column
+            # https://www.statology.org/r-squared-in-python/
+            # R2 values of:
+            # - smap to topnet (done)
+            # - use that to interpolate missing smap
+            # - smap to field observations(with and without interpolate)
+            # - topnet to field observations
+            # - smap and topnet to field observations(with and without interpolate)
+
+            # calculate R-squared of regression model
+            r_squared = linear_regression_r2(joint_df[df_obs2_compare.columns[i]],
+                                             joint_df[df_topnet2_compare.columns[i]])
+            # view R-squared value
+            # print(r_squared)
+            my_r2s[i] = r_squared
+
+    gdf_obs['r2'] = None
+    gdf_obs.loc[gdf_index_list, 'r2'] = my_r2s
+
+# todo: the below is from the other function. Still to change and put somewhere in this function!!!
+    if plot_time_series:
+        print('plot rchid = ' + str(rchid))
+        saveFigName = r'rchid_' + str(rchid) + '_topnet_smap'
+        my_fontsize = 14
+        year_size = 365  # approx 5 years of daily data
+
+        ax = smap_col_df.plot(marker='.', ms=5, alpha=1, linestyle='None',
+                              figsize=(5 * (math.ceil(smap_col_df.size / year_size)), 5),
+                              fontsize=my_fontsize, grid=True, label='smap')
+        topnet_col_df.plot(ax=ax, label='topnet')
+        plt.legend(loc='best')
+        plt.title(r'soil moisture in reach id ' + str(rchid), fontsize=my_fontsize)
+        plt.xlabel('', fontsize=my_fontsize)
+        plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
+        plt.tight_layout()
+        plt.tight_layout()
+        fig_path = os.path.join(os.getcwd(), r'files\outputs')
+        if not os.path.exists(fig_path):
+            os.mkdir(fig_path)
+        saveFigName = os.path.join(fig_path, saveFigName)
+        plt.savefig(saveFigName + '.png', dpi=300)
+        # plt.savefig(saveFigName + '.eps', dpi=300)
+        plt.close()
+        # plt.show()
+
+    if save_new_gdf:
+        gdf_reaches['r2_obs_topnet'] = my_r2s
+        gdf_reaches.to_pickle(os.path.join(gdf_path, gdf_file + '_r2'))
+
+    if plot_correlation_maps:
+        gdf = gdf_reaches.set_geometry("centroid")
+        gdf.dropna().plot("r2_smap_topnet", legend=True, markersize=5)
+        # plt.show()
+        saveFigName = 'r2_smap_topnet'
+        fig_path = os.path.join(os.getcwd(), r'files\outputs')
+        if not os.path.exists(fig_path):
+            os.mkdir(fig_path)
+        plt.savefig(os.path.join(fig_path, saveFigName) + '.png', dpi=300)
+        plt.close()
+    return gdf_obs

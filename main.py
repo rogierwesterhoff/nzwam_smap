@@ -1,4 +1,4 @@
-from libs.modules.my_methods import readNcSmapToDf, read_nz_reaches, read_topnet_soilh2o, compare_dataframes_smap_topnet, read_field_obs_soilh2o
+from libs.modules.my_methods import read_nz_reaches, read_topnet_soilh2o, compare_dataframes_smap_topnet, read_field_obs_soilh2o, compare_dataframes_obs_topnet
 from libs.modules.utils import linear_regression_r2
 import time
 import os
@@ -26,9 +26,10 @@ df_name_soilh2o = 'soilh2o_df'
 df_path = os.path.join(os.getcwd(), r'files\dataframes')
 df_name = os.path.join(df_path, df_name_soilh2o)
 existing_pickle = True
+input_rchids = None
 if existing_pickle:
     print('Reading topnet soilh2o from dataframe object ' + df_path)
-    topnet_df = pd.read_pickle(df_name)
+    df_topnet = pd.read_pickle(df_name)
 else:
     rchids = list(gdf_reaches.index)
     input_rchids = rchids[:]
@@ -37,12 +38,12 @@ else:
     my_file = r'streamq_daily_average_2016060100_2021053100_utc_topnet_01000000_strahler1-SoilM-NM.nc'
     nc_fn = os.path.join(my_path, my_file)
     print('reading topnet soilh2o...')
-    topnet_df = read_topnet_soilh2o(input_rchids, nc_fn) # also possible to plot and save, see function input
+    df_topnet = read_topnet_soilh2o(input_rchids, nc_fn) # also possible to plot and save, see function input
 
     if not os.path.exists(df_path):
         os.mkdir(df_path)
 
-    topnet_df.to_pickle(df_name)
+    df_topnet.to_pickle(df_name)
 
 # step 3: read SMAP data within river reach polygon and compile for each rchid.
 print('reading SMAP soil moisture (files were pre-processed earlier) ...')
@@ -69,23 +70,7 @@ roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
 gdf_obs, df_obs = read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn)
 
 # step 6: compare dataframes of topnet to field_obs
-import numpy as np
-input_rchids = list(gdf_obs['Station Rchid'])
-my_r2s = [np.nan] * len(input_rchids)
-#my_topnet_df = topnet_df[input_rchids] # todo: this doesn't work as reachids do not compare (Strahler level?). Find closest coordinate instead
-
-gdf_obs_nztm = gdf_obs.to_crs(2193)
-for i in range(len(input_rchids)):
-    obs_coord = gdf_obs_nztm.iloc[i].geometry
-    gdf_in = gdf_reaches.contains(obs_coord)
-    my_reach = gdf_reaches[gdf_in]
-    # todo: check if not empty
-
-    #todo: take values of both datasets and put in dataframe
-    print(my_reach)
-
-df_obs.index = df_obs.index.floor('D')
-topnet_df.index = topnet_df.index.floor('D')
+gdf_obs_with_r2s = compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet)
 
 # step 7: compare dataframes of smap to field_obs
 
