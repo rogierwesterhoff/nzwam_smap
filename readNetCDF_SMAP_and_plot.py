@@ -42,7 +42,7 @@ save_my_figs = True
 lat_point = -35.5
 lon_point = 174.0
 start_date = datetime.datetime(2016, 6, 1)
-end_date = datetime.datetime(2016, 6, 2)  # year, month, day
+end_date = datetime.datetime(2021, 5, 30)  # year, month, day
 
 # ++++++++ MY FUNCTIONS +++++++
 

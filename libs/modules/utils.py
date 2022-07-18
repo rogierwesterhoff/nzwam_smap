@@ -12,6 +12,7 @@ def indexContainingSubstring(the_list, substring):
     return -1
 
 def closestNode(node, nodes):
+    import numpy as np
     nodes = np.asarray(nodes)
     deltas = nodes - node
     return np.argmin(abs(deltas))

@@ -291,7 +291,8 @@ def read_topnet_soilh2o(reach_numbers, nc_fn, plot_time_series=False, save_my_fi
 
     return df
 
-def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps = False, save_to_pickle = True):
+
+def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps=False, save_to_pickle=True):
     import os
     import netCDF4 as nc
     import numpy as np
@@ -369,15 +370,17 @@ def read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn, plot_maps = False, 
         df_output_fn = os.path.join(df_path, 'field_obs_nz_df')
         df.to_pickle(gdf_output_fn)
 
-        print(r'GeoDataframes saved in files/dataframes.')
+        # print(r'GeoDataframes saved in files/dataframes.')
 
     return gdf[gdf_in], df[station_rchid[gdf_in]]
 
+
 def compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file, plot_time_series=False, save_new_gdf=True,
-                       plot_correlation_maps=True):
+                                   plot_correlation_maps=True, my_shape=None):
     import matplotlib.pyplot as plt
     import numpy as np
     import math
+    import geopandas as gpd
     from libs.modules.utils import linear_regression_r2
 
     gdf_reaches = pd.read_pickle(os.path.join(gdf_path, gdf_file))
@@ -430,10 +433,10 @@ def compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file, plot_
                 my_fontsize = 14
                 year_size = 365  # approx 5 years of daily data
 
-                ax = smap_col_df.plot(marker='.', ms=5, alpha=1, linestyle='None',
+                ax = smap_col_df.plot(marker='.', ms=5, alpha=1, linestyle='None',color='r',
                                       figsize=(5 * (math.ceil(smap_col_df.size / year_size)), 5),
                                       fontsize=my_fontsize, grid=True, label='smap')
-                topnet_col_df.plot(ax=ax, label='topnet')
+                topnet_col_df.plot(ax=ax, label='topnet',color='b')
                 plt.legend(loc='best')
                 plt.title(r'soil moisture in reach id ' + str(rchid), fontsize=my_fontsize)
                 plt.xlabel('', fontsize=my_fontsize)
@@ -455,22 +458,28 @@ def compare_dataframes_smap_topnet(smap_df, topnet_df, gdf_path, gdf_file, plot_
 
     if plot_correlation_maps:
         gdf = gdf_reaches.set_geometry("centroid")
-        gdf.dropna().plot("r2_smap_topnet", legend=True, markersize=5)
+        ax = gdf.dropna().plot("r2_smap_topnet", legend=True, markersize=5)
+
+        if my_shape is not None:
+            gdf_shape = gpd.read_file(my_shape)
+            gdf_shape['boundary'] = gdf_shape.boundary
+            gdf_shape['boundary'].plot(ax=ax, color="grey", linewidth=.5)
         # plt.show()
-        saveFigName = 'r2_smap_topnet'
+        save_fig_name = 'r2_smap_topnet'
         fig_path = os.path.join(os.getcwd(), r'files\outputs')
         if not os.path.exists(fig_path):
             os.mkdir(fig_path)
-        plt.savefig(os.path.join(fig_path, saveFigName) + '.png', dpi=300)
+        plt.savefig(os.path.join(fig_path, save_fig_name) + '.png', dpi=300)
         plt.close()
 
     return gdf_reaches
 
 
-def compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet, plot_time_series=False, save_new_gdf=False,
-                                  plot_correlation_maps=False):
+def compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet, plot_time_series=True, save_new_gdf=False,
+                                  plot_correlation_maps=False, my_shape=None):
     import numpy as np
     from libs.modules.utils import linear_regression_r2
+    import geopandas as gpd
 
     input_rchids = list(gdf_obs['Station Rchid'])
     my_r2s = [np.nan] * len(input_rchids)
@@ -523,51 +532,217 @@ def compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet, plot_
             # calculate R-squared of regression model
             r_squared = linear_regression_r2(joint_df[df_obs2_compare.columns[i]],
                                              joint_df[df_topnet2_compare.columns[i]])
+            # todo: also calculate model fits (in above or similar function)
             # view R-squared value
             # print(r_squared)
             my_r2s[i] = r_squared
 
-    gdf_obs['r2'] = None
-    gdf_obs.loc[gdf_index_list, 'r2'] = my_r2s
+            if plot_time_series:
+                print('plot obs_station = ' + str(df_obs_list[i]))
+                saveFigName = r'obs_id_' + str(df_obs_list[i]) + '_obs_topnet'
+                my_fontsize = 14
+                year_size = 365  # approx 5 years of daily data
 
-# todo: the below is from the other function. Still to change and put somewhere in this function!!!
-    if plot_time_series:
-        print('plot rchid = ' + str(rchid))
-        saveFigName = r'rchid_' + str(rchid) + '_topnet_smap'
-        my_fontsize = 14
-        year_size = 365  # approx 5 years of daily data
+                ax = obs_col.plot(marker='.', ms=5, alpha=1, linestyle='None', color='g',
+                                  figsize=(5 * (math.ceil(obs_col.size / year_size)), 5),
+                                  fontsize=my_fontsize, grid=True, label='in situ')
+                topnet_col.plot(ax=ax, label='topnet',color='b')
+                plt.legend(loc='best')
+                plt.title(r'soil moisture at obs station id ' + str(df_obs_list[i]), fontsize=my_fontsize)
+                plt.xlabel('', fontsize=my_fontsize)
+                plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
+                plt.tight_layout()
+                plt.tight_layout()
+                fig_path = os.path.join(os.getcwd(), r'files\outputs')
+                if not os.path.exists(fig_path):
+                    os.mkdir(fig_path)
+                saveFigName = os.path.join(fig_path, saveFigName)
+                plt.savefig(saveFigName + '.png', dpi=300)
+                # plt.savefig(saveFigName + '.eps', dpi=300)
+                plt.close()
+                # plt.show()
 
-        ax = smap_col_df.plot(marker='.', ms=5, alpha=1, linestyle='None',
-                              figsize=(5 * (math.ceil(smap_col_df.size / year_size)), 5),
-                              fontsize=my_fontsize, grid=True, label='smap')
-        topnet_col_df.plot(ax=ax, label='topnet')
-        plt.legend(loc='best')
-        plt.title(r'soil moisture in reach id ' + str(rchid), fontsize=my_fontsize)
-        plt.xlabel('', fontsize=my_fontsize)
-        plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
-        plt.tight_layout()
-        plt.tight_layout()
-        fig_path = os.path.join(os.getcwd(), r'files\outputs')
-        if not os.path.exists(fig_path):
-            os.mkdir(fig_path)
-        saveFigName = os.path.join(fig_path, saveFigName)
-        plt.savefig(saveFigName + '.png', dpi=300)
-        # plt.savefig(saveFigName + '.eps', dpi=300)
-        plt.close()
-        # plt.show()
+    gdf_obs_nztm['r2_obs_topnet'] = np.nan
+    gdf_obs_nztm.loc[gdf_index_list, 'r2_obs_topnet'] = my_r2s
 
     if save_new_gdf:
-        gdf_reaches['r2_obs_topnet'] = my_r2s
-        gdf_reaches.to_pickle(os.path.join(gdf_path, gdf_file + '_r2'))
+        gdf_obs_nztm.to_pickle(os.path.join(os.getcwd(), r'files\dataframes\gdf_obs_topnet_r2'))
 
     if plot_correlation_maps:
-        gdf = gdf_reaches.set_geometry("centroid")
-        gdf.dropna().plot("r2_smap_topnet", legend=True, markersize=5)
-        # plt.show()
-        saveFigName = 'r2_smap_topnet'
+        ax = gdf_obs_nztm.dropna().plot('r2_obs_topnet', legend=True, markersize=10)
+        if my_shape is not None:
+            gdf_shape = gpd.read_file(my_shape)
+            gdf_shape['boundary'] = gdf_shape.boundary
+            gdf_shape['boundary'].plot(ax=ax, color="grey", linewidth=.5)
+            # plt.show()
+        saveFigName = r'r2_obs_topnet'
         fig_path = os.path.join(os.getcwd(), r'files\outputs')
         if not os.path.exists(fig_path):
             os.mkdir(fig_path)
         plt.savefig(os.path.join(fig_path, saveFigName) + '.png', dpi=300)
         plt.close()
+
+    return gdf_obs
+
+
+def read_smap_at_obs(gdf_obs,
+                     data_path=r'i:GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SmapData\NorthlandNcFiles',
+                     buffer=3):
+    import numpy as np
+    import glob
+    import datetime
+    from libs.modules.utils import indexContainingSubstring, closestNode, linear_regression_r2
+    import netCDF4 as nc
+    import maya
+    import os
+    import geopandas as gpd
+    import pandas as pd
+
+    # data_path = r'i:GroundWater\Research\NIWA_NationalHydrologyProgram\Data\SoilMoistureVanderSat\SmapData\NorthlandNcFiles'
+    # buffer = 3  # number of SMAP pixels around the field observation to bring into the comparison
+
+    print('reading SMAP data at locations of field observations ...')
+
+    # read smap
+    file_list = sorted(glob.glob(os.path.join(data_path, r'SM-SMAP*.nc')))
+
+    # https://www.w3schools.com/python/python_datetime.asp
+    start_date = datetime.datetime(2016, 6, 1)
+    end_date = datetime.datetime(2021, 5, 31)  # year, month, day
+
+    a = start_date.strftime('%Y%m%d')
+    start_date_str = (a[:4] + r'-' + a[4:6] + r'-' + a[6:8])
+
+    a = end_date.strftime('%Y%m%d')
+    end_date_str = (a[:4] + r'-' + a[4:6] + r'-' + a[6:8])
+
+    duration_days = (end_date - start_date).days + 1
+    # print(str(duration_days) + r' day period')
+
+    index1 = indexContainingSubstring(file_list, start_date_str)
+    index2 = indexContainingSubstring(file_list, end_date_str)
+
+    # read coordinates of field observations and find closest smap
+    input_obs_station_list = list(gdf_obs['Station Rchid'])
+
+    # gdf_obs['buffered'] = gdf_obs.to_crs(2193).buffer(200)
+
+    d = {}
+    for i in range(len(input_obs_station_list)):
+        print(r'working on observation: ' + str(i + 1))
+        obs_lon = gdf_obs.iloc[i].geometry.x
+        obs_lat = gdf_obs.iloc[i].geometry.y
+
+        station_id = str(input_obs_station_list[i])
+        column_names = ["Time", station_id]
+        d[station_id] = pd.DataFrame(columns=column_names)
+
+        for ifile in range(index1, index2 + 1):
+
+            fn = file_list[ifile]
+            ds = nc.Dataset(fn)
+            lat = ds['lat'][:]
+            lon = ds['lon'][:]
+            index_lat = closestNode(obs_lat, lat)  # only used in timeseries
+            index_lon = closestNode(obs_lon, lon)  # only used in timeseries
+            sm_q = ds['SM-SMAP-L-DESC_V4.0_100'][:, index_lon - buffer:index_lon + buffer + 1,
+                   index_lat - buffer:index_lat + buffer + 1]
+            mx = np.ma.masked_invalid(sm_q)
+            if sum(sum(sum(mx.mask))) == mx.mask.size:
+                sm_q = np.nan
+            else:
+                # df[input_obs_station_list[i]] = sm_q.filled(np.nan).flatten()
+                sm_q = sm_q.filled(np.nan).flatten().mean()
+
+            date_time_obj = maya.parse(ds.datetime).datetime()
+            d[station_id].loc[ifile] = [date_time_obj, sm_q]  # put data in dataframe
+
+        d[station_id].set_index('Time', inplace=True)
+
+    df_smap_at_obs = pd.concat(d.values(), axis=1)
+    return df_smap_at_obs
+
+def compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False, plot_correlation_maps=False,
+                        my_shape=None, save_new_gdf=True):
+    import numpy as np
+    import math
+    from libs.modules.utils import linear_regression_r2
+    import matplotlib.pyplot as plt
+    import os
+    import geopandas as gpd
+
+    print('Comparing SMAP data to observations...')
+    df_obs.columns = [str(col) + '_obs' for col in df_obs.columns]
+    df_smap_at_obs.columns = [str(col) + '_smap' for col in df_smap_at_obs.columns]
+    df_obs = df_obs.resample('D').mean()
+    df_smap_at_obs = df_smap_at_obs.resample('D').mean()
+
+    input_obs_station_list = list(gdf_obs['Station Rchid'])
+    my_r2s = [np.nan] * len(input_obs_station_list)
+    for i in range(len(input_obs_station_list)):
+        obs_col = df_obs[df_obs.columns[i]]  # more generic than df_obs[input_obs_station_list[i]]
+        smap_at_obs_col = df_smap_at_obs[df_smap_at_obs.columns[i]]
+        if np.sum(obs_col.count()) > 0 and np.sum(smap_at_obs_col.count()) > 0:
+            # smap_col_df = smap_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+            # topnet_col_df = topnet_col_df.fillna('NaN').astype('float')  # convert NaT to NaN and cast values to float
+
+            frames = [obs_col, smap_at_obs_col]
+            joint_df = pd.concat(frames, axis=1)
+            joint_df.dropna(inplace=True)
+            # joint_df.columns = [r'obs_' + str(rchid), r'topnet_' + str(rchid)]
+            # calculate R2 and add to gdfreaches as a column
+            # https://www.statology.org/r-squared-in-python/
+
+            # calculate R-squared of regression model
+            r_squared = linear_regression_r2(joint_df[df_obs.columns[i]],
+                                             joint_df[df_smap_at_obs.columns[i]])
+            # todo: also calculate model fits (in above or similar function)
+            # view R-squared value
+            # print(r_squared)
+            my_r2s[i] = r_squared
+
+            if plot_time_series:
+                print('plot obs_station = ' + str(input_obs_station_list[i]))
+                saveFigName = r'obs_id_' + str(input_obs_station_list[i]) + '_obs_smap'
+                my_fontsize = 14
+                year_size = 365  # approx 5 years of daily data
+
+                ax = smap_at_obs_col.plot(marker='.', ms=5, alpha=1, linestyle='None', color='r',
+                                          figsize=(5 * (math.ceil(obs_col.size / year_size)), 5),
+                                          fontsize=my_fontsize, grid=True, label='smap')
+                obs_col.plot(ax=ax, label='in situ', marker='.', ms=5, alpha=1, linestyle='None', color='g')
+                plt.legend(loc='best')
+                plt.title(r'soil moisture at obs station id ' + str(input_obs_station_list[i]), fontsize=my_fontsize)
+                plt.xlabel('', fontsize=my_fontsize)
+                plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
+                plt.tight_layout()
+                plt.tight_layout()
+                fig_path = os.path.join(os.getcwd(), r'files\outputs')
+                if not os.path.exists(fig_path):
+                    os.mkdir(fig_path)
+                saveFigName = os.path.join(fig_path, saveFigName)
+                plt.savefig(saveFigName + '.png', dpi=300)
+                # plt.savefig(saveFigName + '.eps', dpi=300)
+                plt.close()
+                # plt.show()
+
+    gdf_obs['r2_obs_smap'] = my_r2s
+
+    if save_new_gdf:
+        gdf_obs.to_pickle(os.path.join(os.getcwd(), r'files\dataframes\gdf_obs_smap_r2'))
+
+    if plot_correlation_maps:
+        ax = gdf_obs.to_crs(2193).dropna().plot('r2_obs_smap', legend=True, markersize=10)
+        if my_shape is not None:
+            gdf_shape = gpd.read_file(my_shape)
+            gdf_shape['boundary'] = gdf_shape.boundary
+            gdf_shape['boundary'].plot(ax=ax, color="grey", linewidth=.5)
+            # plt.show()
+        saveFigName = r'r2_obs_smap'
+        fig_path = os.path.join(os.getcwd(), r'files\outputs')
+        if not os.path.exists(fig_path):
+            os.mkdir(fig_path)
+        plt.savefig(os.path.join(fig_path, saveFigName) + '.png', dpi=300)
+        plt.close()
+
     return gdf_obs
