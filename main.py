@@ -86,6 +86,7 @@ else:
 
 df_smap_at_obs = df_smap_at_obs.tz_localize(None)
 
+
 # step 8: compare dataframes of smap to field_obs
 # todo: check why values are the same as topnet r2s???
 print("todo: check why values are the same as topnet r2s???")
