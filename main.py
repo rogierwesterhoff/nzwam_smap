@@ -1,5 +1,4 @@
 from libs.modules.my_methods import read_nz_reaches, read_topnet_soilh2o, compare_dataframes_smap_topnet, read_field_obs_soilh2o, compare_dataframes_obs_topnet
-from libs.modules.utils import linear_regression_r2
 import time
 import os
 import pandas as pd
@@ -9,7 +8,8 @@ t = time.time()
 # step 1: read river reaches and their coordinates as a geopandas frame (output epsg: 2193)
 gdf_path = os.path.join(os.getcwd(), r'files\dataframes')
 gdf_file = 'nz_reaches_gdf'
-roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
+roi_shape_fn = os.path.join(os.getcwd(), r'files\inputs\shapes\Northland_NZTM.shp')
+# roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp' # todo (optional): try multiple folders
 
 if not os.path.exists(os.path.join(gdf_path, gdf_file)):
     print('Building river reaches dataframe..')
