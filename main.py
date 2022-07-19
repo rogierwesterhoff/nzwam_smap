@@ -70,8 +70,8 @@ gdf_obs, df_obs = read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn)
 
 # step 6: compare dataframes of topnet to field_obs
 gdf_obs_with_r2s_topnet = compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet,
-                                                 plot_time_series=False, save_new_gdf=True,
-                                                 plot_correlation_maps=False, my_shape=roi_shape_fn)
+                                                 plot_time_series=True, save_new_gdf=True,
+                                                 plot_correlation_maps=True, my_shape=roi_shape_fn)
 
 # step 7: read smap data at field observations
 from libs.modules.my_methods import read_smap_at_obs
@@ -91,8 +91,8 @@ df_smap_at_obs = df_smap_at_obs.tz_localize(None)
 # todo: check why values are the same as topnet r2s???
 print("todo: check why values are the same as topnet r2s???")
 from libs.modules.my_methods import compare_smap_at_obs
-gdf_obs_with_r2s_smap = compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
-                                            plot_correlation_maps=False, my_shape=roi_shape_fn, save_new_gdf=True)
+gdf_obs_with_r2s_smap = compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=True,
+                                            plot_correlation_maps=True, my_shape=roi_shape_fn, save_new_gdf=True)
 
 elapsed = time.time() - t
 print(r'run time: ' + str(round(elapsed) / 60) + r' minutes')
