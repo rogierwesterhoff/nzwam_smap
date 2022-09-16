@@ -25,7 +25,7 @@ df_name_soilh2o = 'topnet_df'
 df_path = os.path.join(os.getcwd(), r'files\dataframes')
 df_name = os.path.join(df_path, df_name_soilh2o)
 existing_pickle = True
-input_rchids = None
+# input_rchids = None # todo: check if this solves the error name is not defined message
 if existing_pickle:
     print('Reading topnet soilh2o from dataframe object ' + os.path.join(df_path, df_name))
     df_topnet = pd.read_pickle(df_name)
@@ -78,7 +78,7 @@ from libs.modules.my_methods import read_smap_at_obs
 
 smap_at_obs_fn = os.path.join(os.getcwd(), r'files\dataframes\smap_at_obs_df')
 if not os.path.exists(smap_at_obs_fn):
-    df_smap_at_obs = read_smap_at_obs(gdf_obs)
+    df_smap_at_obs = read_smap_at_obs(gdf_obs, buffer=2)
     df_smap_at_obs.to_pickle(smap_at_obs_fn)
 else:
     print('reading pickled SMAP data at field observation...')
@@ -86,13 +86,19 @@ else:
 
 df_smap_at_obs = df_smap_at_obs.tz_localize(None)
 
-
 # step 8: compare dataframes of smap to field_obs
-# todo: check why values are the same as topnet r2s???
-print("todo: check why values are the same as topnet r2s???")
+
 from libs.modules.my_methods import compare_smap_at_obs
 gdf_obs_with_r2s_smap = compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
-                                            plot_correlation_maps=False, my_shape=roi_shape_fn, save_new_gdf=True)
+                                            plot_correlation_maps=True, my_shape=roi_shape_fn, save_new_gdf=True)
+
+# # step 9: optional for plotting: plot all data at obs locations
+# from libs.modules.my_methods import plot_obs_topnet_smap
+# plot_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs)
+
+# todo: make crossplots for all areas, and per catchment to see what the difference is.
+
+# todo: use the sklearn to interpolate within each catchment based on model fits. Fit the SMAP data to topnet data for that (or think about that for a bit longer...).
 
 elapsed = time.time() - t
 print(r'run time: ' + str(round(elapsed) / 60) + r' minutes')
