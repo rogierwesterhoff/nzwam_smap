@@ -824,49 +824,63 @@ def crossplots_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_
 
 
         # todo: when we go for the option of linear regression interpolation, explore further to build linear regression relations
-        if i==0: # just for test, remove once done
-            # create scatterplot with regression line, R2, and confidence interval lines
-            frames = [obs_col, topnet_at_obs_col] # repeat for smap_at_obs_col
-            joint_df = pd.concat(frames, axis=1)
-            joint_df.dropna(inplace=True)
+        # create scatterplot with regression line, R2, and confidence interval lines
+        frames = [obs_col, topnet_at_obs_col] # repeat for smap_at_obs_col
+        joint_df = pd.concat(frames, axis=1)
+        joint_df.dropna(inplace=True)
 
-            a = joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]
-            if (joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]).count() > 0:
-                r_squared, coeffs = linear_regression_r2(joint_df[joint_df.columns[0]],
-                                                 joint_df[joint_df.columns[1]],
-                                                 output_all=True)
+        a = joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]
+        if (joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]).count() > 0:
+            r_squared, coeffs = linear_regression_r2(joint_df[joint_df.columns[0]],
+                                             joint_df[joint_df.columns[1]],
+                                             output_all=True)
 
-                # left plot: using seaborn regplot
-                # right plot: using the r_squared coefficients
-                fig, ax = plt.subplots(figsize=(12, 5))
-                saveFigName = r'cross_plot_obs_id_' + str(input_rchids[i]) + '_obs_smap'
-                my_fontsize = 14
-                xmax = np.max(joint_df[joint_df.columns[0]])
-                ymax = np.max(joint_df[joint_df.columns[1]])
+            fit_intercept = coeffs.iloc[0, 0]
+            fit_slope = coeffs.iloc[1, 0]
+            p95_min_intercept = coeffs.iloc[0, 3]
+            p95_min_slope = coeffs.iloc[1, 3]
+            p95_plus_intercept = coeffs.iloc[0, 4]
+            p95_plus_slope = coeffs.iloc[1, 4]
 
-                plt.subplot(1, 2, 1)
-                # ax = plt.plot([(0, 0)], [(1, 1)], linestyle='dashed', color='black')
-                sns.regplot(x=joint_df[joint_df.columns[0]], y=joint_df[joint_df.columns[1]],
-                            color='k', marker='.') # 0 = obs; 1 = topnet; 2 = smap
-                plt.xlim(0, xmax)
-                plt.ylim(0, ymax)
 
-                plt.grid(True)
+            # left plot: using seaborn regplot
+            # right plot: using the r_squared coefficients
+            fig, ax = plt.subplots(figsize=(5, 5))
+            saveFigName = r'cross_plot_obs_id_' + str(input_rchids[i]) + '_obs_smap'
+            my_fontsize = 14
+            xmin = np.min(joint_df[joint_df.columns[0]])
+            # ymin = np.min(joint_df[joint_df.columns[1]])
+            xmax = np.max(joint_df[joint_df.columns[0]])
+            ymax = np.max(joint_df[joint_df.columns[1]])
 
-                plt.subplot(1, 2, 2)
-                plt.scatter(joint_df[joint_df.columns[0]], joint_df[joint_df.columns[1]],
-                            color='k', marker='.')
-                x = np.linspace(0, 1, 10)
-                # yfit =
-                # plt.plot(x, x, linestyle='dashed', color='grey')
-                plt.xlim(0, xmax)
-                plt.ylim(0, ymax)
-                plt.xlabel(joint_df.columns[0])
-                plt.ylabel(joint_df.columns[1])
-                plt.grid(True)
-                plt.show()
-            else:
-                print('skipping empty...')
+            # plt.subplot(1, 2, 1)
+            # # ax = plt.plot([(0, 0)], [(1, 1)], linestyle='dashed', color='black')
+            # sns.regplot(x=joint_df[joint_df.columns[0]], y=joint_df[joint_df.columns[1]],
+            #             color='k', marker='.') # 0 = obs; 1 = topnet; 2 = smap
+            # plt.xlim(0, xmax)
+            # plt.ylim(0, ymax)
+            # plt.grid(True)
+
+            plt.subplot(1, 1, 1)
+            plt.scatter(joint_df[joint_df.columns[0]], joint_df[joint_df.columns[1]],
+                        color='k', marker='.')
+            x = np.linspace(xmin, xmax, 10)
+            y_fit = fit_intercept + x * fit_slope
+            y_fit_p95_min = p95_min_intercept + x * p95_min_slope
+            y_fit_p95_plus = p95_plus_intercept + x * p95_plus_slope
+            plt.plot(x, y_fit, color='grey')
+            plt.plot(x, y_fit_p95_min, linestyle='dashed', color='grey')
+            plt.plot(x, y_fit_p95_plus, linestyle='dashed', color='grey')
+            plt.xlim(0, xmax)
+            plt.ylim(0, ymax)
+            plt.xlabel(joint_df.columns[0])
+            plt.ylabel(joint_df.columns[1])
+            plt.text(0.5*xmin, 0.9*ymax, f'R$^2$ = {r_squared:.3f}', fontsize=12, backgroundcolor='w')
+            plt.grid(True)
+            plt.show()
+            # todo save figure
+        else:
+            print('skipping empty...')
 
         if plot_time_series:
             print('plot smap and topnet at obs_station = ' + str(input_rchids[i]))
