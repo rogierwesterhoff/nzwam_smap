@@ -660,6 +660,7 @@ def compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
     import math
     from libs.modules.utils import linear_regression_r2
     import os
+    import seaborn as sns
 
     print('Comparing SMAP data to observations...')
     df_obs.columns = [str(col) + '_obs' for col in df_obs.columns]
@@ -686,10 +687,10 @@ def compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
             # calculate R-squared of regression model
             r_squared = linear_regression_r2(joint_df[joint_df.columns[0]],
                                              joint_df[joint_df.columns[1]],
-                                             output_all=True)
+                                             output_all=False)
             # view R-squared value
             # print(r_squared)
-            my_r2s[i] = r_squared[0]
+            my_r2s[i] = r_squared
 
             if plot_time_series:
                 print('plot obs_station = ' + str(input_obs_station_list[i]))
@@ -739,6 +740,7 @@ def compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
 
 def plot_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs):
     from libs.modules.utils import linear_regression_r2
+    import seaborn as sns
 
     input_rchids = list(gdf_obs['Station Rchid'])
 
@@ -789,3 +791,105 @@ def plot_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs
         # plt.savefig(saveFigName + '.eps', dpi=300)
         plt.close()
         # plt.show()
+
+
+def crossplots_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs,
+                         plot_time_series=True):
+    from libs.modules.utils import linear_regression_r2
+    import seaborn as sns
+
+    input_rchids = list(gdf_obs['Station Rchid'])
+
+    gdf_obs_nztm = gdf_obs.to_crs(2193)
+
+    for i in range(len(input_rchids)):
+        obs_col = df_obs[df_obs.columns[i]]
+        smap_at_obs_col = df_smap_at_obs[df_smap_at_obs.columns[i]]
+
+        # topnet stuff
+        obs_coord = gdf_obs_nztm.iloc[i].geometry
+        gdf_in = gdf_reaches.contains(obs_coord)
+
+        if len(gdf_in[gdf_in]) == 1:  # check if not empty
+            my_reach = gdf_reaches[gdf_in]
+            topnet_at_obs_col = df_topnet[str(my_reach.iloc[0].name)]
+        else:
+            topnet_at_obs_col = np.nan * df_topnet[df_topnet.columns[0]]
+
+        # d_topnet[str(my_reach.iloc[0].name)] = topnet_df[str(my_reach.iloc[0].name)].copy()
+
+        obs_col = obs_col.resample('D').mean()
+        topnet_at_obs_col = topnet_at_obs_col.resample('D').mean()
+        smap_at_obs_col = smap_at_obs_col.resample('D').mean()
+
+
+        # todo: when we go for the option of linear regression interpolation, explore further to build linear regression relations
+        if i==0: # just for test, remove once done
+            # create scatterplot with regression line, R2, and confidence interval lines
+            frames = [obs_col, topnet_at_obs_col] # repeat for smap_at_obs_col
+            joint_df = pd.concat(frames, axis=1)
+            joint_df.dropna(inplace=True)
+
+            a = joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]
+            if (joint_df[joint_df.columns[0]]+joint_df[joint_df.columns[1]]).count() > 0:
+                r_squared, coeffs = linear_regression_r2(joint_df[joint_df.columns[0]],
+                                                 joint_df[joint_df.columns[1]],
+                                                 output_all=True)
+
+                # left plot: using seaborn regplot
+                # right plot: using the r_squared coefficients
+                fig, ax = plt.subplots(figsize=(12, 5))
+                saveFigName = r'cross_plot_obs_id_' + str(input_rchids[i]) + '_obs_smap'
+                my_fontsize = 14
+                xmax = np.max(joint_df[joint_df.columns[0]])
+                ymax = np.max(joint_df[joint_df.columns[1]])
+
+                plt.subplot(1, 2, 1)
+                # ax = plt.plot([(0, 0)], [(1, 1)], linestyle='dashed', color='black')
+                sns.regplot(x=joint_df[joint_df.columns[0]], y=joint_df[joint_df.columns[1]],
+                            color='k', marker='.') # 0 = obs; 1 = topnet; 2 = smap
+                plt.xlim(0, xmax)
+                plt.ylim(0, ymax)
+
+                plt.grid(True)
+
+                plt.subplot(1, 2, 2)
+                plt.scatter(joint_df[joint_df.columns[0]], joint_df[joint_df.columns[1]],
+                            color='k', marker='.')
+                x = np.linspace(0, 1, 10)
+                # yfit =
+                # plt.plot(x, x, linestyle='dashed', color='grey')
+                plt.xlim(0, xmax)
+                plt.ylim(0, ymax)
+                plt.xlabel(joint_df.columns[0])
+                plt.ylabel(joint_df.columns[1])
+                plt.grid(True)
+                plt.show()
+            else:
+                print('skipping empty...')
+
+        if plot_time_series:
+            print('plot smap and topnet at obs_station = ' + str(input_rchids[i]))
+            saveFigName = r'obs_id_' + str(input_rchids[i]) + '_obs_topnet_smap'
+            my_fontsize = 14
+            year_size = 365  # approx 5 years of daily data
+
+            ax = obs_col.plot(marker='.', ms=5, alpha=1, linestyle='None', color='g',
+                              figsize=(5 * (math.ceil(obs_col.size / year_size)), 5),
+                              fontsize=my_fontsize, grid=True, label='in situ')
+            topnet_at_obs_col.plot(ax=ax, label='topnet', color='b')
+            smap_at_obs_col.plot(ax=ax, marker='.', ms=5, alpha=1, linestyle='None', label='smap', color='r')
+            plt.legend(loc='best')
+            plt.title(r'soil moisture at obs station id ' + str(input_rchids[i]), fontsize=my_fontsize)
+            plt.xlabel('', fontsize=my_fontsize)
+            plt.ylabel('SM (m$^3$/m$^3$)', fontsize=my_fontsize)
+            plt.tight_layout()
+            plt.tight_layout()
+            fig_path = os.path.join(os.getcwd(), r'files\outputs')
+            if not os.path.exists(fig_path):
+                os.mkdir(fig_path)
+            saveFigName = os.path.join(fig_path, saveFigName)
+            plt.savefig(saveFigName + '.png', dpi=300)
+            # plt.savefig(saveFigName + '.eps', dpi=300)
+            plt.close()
+            # plt.show()

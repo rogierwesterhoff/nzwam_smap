@@ -99,9 +99,13 @@ def linear_regression_r2(X,y, output_all = False):
     calculates R-squared using linear regression. Expects dataframe input
     :param X: predictor variables, e.g., df[["hours", "prep_exams"]]. Can be np array or pd dataframe/series
     :param y: response variable, e.g. df.score
-    :return: r_squared
+    :return: r_squared (float), (if output_all = True) coefficients of fit (dataframe)
     # background https://www.statology.org/r-squared-in-python/
     # And https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html
+
+    If output_all = True, you can call this function in two ways:
+    1. output = linear_regresssion(X,y, output_all = True): the output is a tuple of r2 (float) and coeffs (dataframe)
+    1. r2s, coeffs = linear_regression(X,y, output_all = True): the outputs are a float (r2) and a dataframe (coeffs)
     '''
 
     from sklearn.linear_model import LinearRegression

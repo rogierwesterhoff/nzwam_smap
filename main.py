@@ -91,13 +91,15 @@ df_smap_at_obs = df_smap_at_obs.tz_localize(None)
 from libs.modules.my_methods import compare_smap_at_obs
 gdf_obs_with_r2s_smap = compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=False,
                                             plot_correlation_maps=True, my_shape=roi_shape_fn, save_new_gdf=True)
-
 # # step 9: optional for plotting: plot all data at obs locations
 # from libs.modules.my_methods import plot_obs_topnet_smap
 # plot_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs)
 
+# # step 10: optional for plotting: plot cross plots
 # todo: make crossplots for all areas, and per catchment to see what the difference is.
-
+from libs.modules.my_methods import crossplots_obs_topnet_smap
+crossplots_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs,
+                     plot_time_series=False)
 # todo: use the sklearn to interpolate within each catchment based on model fits. Fit the SMAP data to topnet data for that (or think about that for a bit longer...).
 
 elapsed = time.time() - t
