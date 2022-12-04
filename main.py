@@ -1,5 +1,4 @@
 from libs.modules.my_methods import read_nz_reaches, read_topnet_soilh2o, compare_dataframes_smap_topnet, read_field_obs_soilh2o, compare_dataframes_obs_topnet
-from libs.modules.utils import linear_regression_r2
 import time
 import os
 import pandas as pd
@@ -9,7 +8,8 @@ t = time.time()
 # step 1: read river reaches and their coordinates as a geopandas frame (output epsg: 2193)
 gdf_path = os.path.join(os.getcwd(), r'files\dataframes')
 gdf_file = 'nz_reaches_gdf'
-roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp'
+roi_shape_fn = os.path.join(os.getcwd(), r'files\inputs\shapes\Northland_NZTM.shp')
+# roi_shape_fn = r'e:\\shapes\\Northland_NZTM.shp' # todo (optional): try multiple folders
 
 if not os.path.exists(os.path.join(gdf_path, gdf_file)):
     print('Building river reaches dataframe..')
@@ -70,8 +70,8 @@ gdf_obs, df_obs = read_field_obs_soilh2o(data_path, data_fn, roi_shape_fn)
 
 # step 6: compare dataframes of topnet to field_obs
 gdf_obs_with_r2s_topnet = compare_dataframes_obs_topnet(gdf_obs, df_obs, gdf_reaches, df_topnet,
-                                                 plot_time_series=False, save_new_gdf=True,
-                                                 plot_correlation_maps=False, my_shape=roi_shape_fn)
+                                                 plot_time_series=True, save_new_gdf=True,
+                                                 plot_correlation_maps=True, my_shape=roi_shape_fn)
 
 # step 7: read smap data at field observations
 from libs.modules.my_methods import read_smap_at_obs
@@ -101,6 +101,8 @@ from libs.modules.my_methods import crossplots_obs_topnet_smap
 crossplots_obs_topnet_smap(gdf_obs, df_obs, gdf_reaches, df_topnet, df_smap_at_obs,
                      plot_time_series=False)
 # todo: use the sklearn to interpolate within each catchment based on model fits. Fit the SMAP data to topnet data for that (or think about that for a bit longer...).
+gdf_obs_with_r2s_smap = compare_smap_at_obs(gdf_obs, df_obs, df_smap_at_obs, plot_time_series=True,
+                                            plot_correlation_maps=True, my_shape=roi_shape_fn, save_new_gdf=True)
 
 elapsed = time.time() - t
 print(r'run time: ' + str(round(elapsed) / 60) + r' minutes')
